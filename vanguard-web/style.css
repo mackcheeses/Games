@@ -98,7 +98,60 @@ html, body {
   font-size: 24px;
   font-weight: bold;
   text-shadow: 0 0 4px rgba(0,0,0,0.8);
-  opacity: 0.8;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+#crosshair small {
+  font-size: 12px;
+  font-weight: normal;
+  opacity: 0.7;
+}
+
+#hud {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+#health-bar {
+  width: 200px;
+  height: 10px;
+  background: rgba(0,0,0,0.5);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+#health-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #ff4444, #ff6b6b);
+  transition: width 0.2s ease;
+}
+
+#ammo-display {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  color: #fff;
+  font-size: 24px;
+  font-family: monospace;
+  text-shadow: 0 0 4px rgba(0,0,0,0.8);
+  pointer-events: none;
+}
+
+#wave-display {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: #fff;
+  font-size: 18px;
+  text-shadow: 0 0 4px rgba(0,0,0,0.8);
+  pointer-events: none;
 }
 
 #debug-info {

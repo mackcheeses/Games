@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import PhysicsManager from './core/PhysicsManager.js';
+import InputController from './core/InputController.js';
 import Arena from './world/Arena.js';
+import Player from './entities/Player.js';
 
 class Game {
   constructor() {
@@ -9,7 +11,7 @@ class Game {
     this.renderer = null;
     this.clock = null;
     this.arena = null;
-    this.testCubes = [];
+    this.player = null;
     this.debugInfo = document.getElementById('debug-info');
     this.frameCount = 0;
     this.fps = 0;
@@ -25,16 +27,20 @@ class Game {
     this.setupScene();
     this.setupCamera();
     
+    InputController.init(this.renderer.domElement);
+    
     this.arena = new Arena();
     this.scene.add(this.arena.create());
     
-    this.spawnTestCubes();
+    this.player = new Player();
+    this.player.init(this.camera, this.arena.getPlayerSpawnPoint());
     
     this.clock = new THREE.Clock();
     
     this.setupEventListeners();
     
     this.hideLoading();
+    this.showStartPrompt();
     
     console.log('[Game] Initialization complete');
     return this;
@@ -71,77 +77,13 @@ class Game {
       0.1,
       100
     );
-    this.camera.position.set(0, 15, 25);
-    this.camera.lookAt(0, 0, 0);
-  }
-  
-  spawnTestCubes() {
-    const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const cubeMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff6b6b,
-      roughness: 0.4,
-      metalness: 0.6
-    });
-    
-    const spawnPositions = [
-      { x: -5, y: 10, z: -5 },
-      { x: 0, y: 12, z: 0 },
-      { x: 5, y: 14, z: 5 },
-      { x: -3, y: 8, z: 3 },
-      { x: 3, y: 16, z: -3 },
-    ];
-    
-    spawnPositions.forEach((pos, index) => {
-      const mesh = new THREE.Mesh(cubeGeometry, cubeMaterial.clone());
-      mesh.material.color.setHSL(index * 0.15, 0.7, 0.5);
-      mesh.position.set(pos.x, pos.y, pos.z);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      this.scene.add(mesh);
-      
-      const { body, collider } = PhysicsManager.createDynamicBody(
-        pos.x, pos.y, pos.z,
-        { x: 0.5, y: 0.5, z: 0.5 }
-      );
-      
-      this.testCubes.push({ mesh, body, collider });
-    });
-    
-    console.log(`[Game] Spawned ${this.testCubes.length} test cubes`);
+    this.camera.position.set(0, 2, 15);
   }
   
   setupEventListeners() {
     window.addEventListener('resize', () => this.onResize());
     
-    this.renderer.domElement.addEventListener('click', () => {
-      this.spawnCubeAtRandom();
-    });
-  }
-  
-  spawnCubeAtRandom() {
-    const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const cubeMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color().setHSL(Math.random(), 0.7, 0.5),
-      roughness: 0.4,
-      metalness: 0.6
-    });
-    
-    const x = (Math.random() - 0.5) * 20;
-    const y = 10 + Math.random() * 10;
-    const z = (Math.random() - 0.5) * 20;
-    
-    const mesh = new THREE.Mesh(cubeGeometry, cubeMaterial);
-    mesh.position.set(x, y, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    this.scene.add(mesh);
-    
-    const { body, collider } = PhysicsManager.createDynamicBody(
-      x, y, z,
-      { x: 0.5, y: 0.5, z: 0.5 }
-    );
-    
-    this.testCubes.push({ mesh, body, collider });
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   
   onResize() {
@@ -163,6 +105,25 @@ class Game {
     }
   }
   
+  showStartPrompt() {
+    const crosshair = document.getElementById('crosshair');
+    if (crosshair) {
+      crosshair.innerHTML = 'Click to play<br><small>WASD to move | Mouse to look | Space to jump | C to crouch</small>';
+      crosshair.style.fontSize = '16px';
+      crosshair.style.textAlign = 'center';
+      crosshair.style.lineHeight = '1.5';
+    }
+  }
+  
+  updateCrosshair() {
+    const crosshair = document.getElementById('crosshair');
+    if (crosshair && InputController.isLocked()) {
+      crosshair.innerHTML = '+';
+      crosshair.style.fontSize = '24px';
+      crosshair.style.display = 'block';
+    }
+  }
+  
   updateDebugInfo(deltaTime) {
     this.frameCount++;
     const now = performance.now();
@@ -173,12 +134,16 @@ class Game {
       this.lastFpsUpdate = now;
     }
     
-    if (this.debugInfo) {
+    if (this.debugInfo && this.player) {
+      const debug = this.player.getDebugInfo();
       this.debugInfo.textContent = [
         `FPS: ${this.fps}`,
-        `Cubes: ${this.testCubes.length}`,
-        `Physics: Rapier3D`,
-        `Click to spawn cubes!`
+        `Pos: ${debug.position}`,
+        `Vel: ${debug.velocity}`,
+        `Grounded: ${debug.grounded}`,
+        `Crouching: ${debug.crouching}`,
+        `Health: ${debug.health}`,
+        `Pointer Lock: ${InputController.isLocked()}`
       ].join('\n');
     }
   }
@@ -186,14 +151,11 @@ class Game {
   update(deltaTime) {
     PhysicsManager.update(deltaTime);
     
-    this.testCubes.forEach(cube => {
-      const pos = PhysicsManager.getBodyPosition(cube.body);
-      const rot = PhysicsManager.getBodyRotation(cube.body);
-      
-      cube.mesh.position.set(pos.x, pos.y, pos.z);
-      cube.mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
-    });
+    if (this.player) {
+      this.player.update(deltaTime);
+    }
     
+    this.updateCrosshair();
     this.updateDebugInfo(deltaTime);
   }
   
@@ -207,7 +169,7 @@ class Game {
     const gameLoop = () => {
       requestAnimationFrame(gameLoop);
       
-      const deltaTime = this.clock.getDelta();
+      const deltaTime = Math.min(this.clock.getDelta(), 0.1);
       
       this.update(deltaTime);
       this.render();
@@ -218,6 +180,7 @@ class Game {
   
   destroy() {
     PhysicsManager.destroy();
+    InputController.destroy();
     this.renderer.dispose();
   }
 }
