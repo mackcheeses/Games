@@ -104,7 +104,7 @@ class Arena {
       metalness: 0.4
     });
     
-    const obstacles = [
+    this.obstacles = [
       { x: -10, z: -10, w: 3, h: 2, d: 3 },
       { x: 10, z: -10, w: 3, h: 2, d: 3 },
       { x: -10, z: 10, w: 3, h: 2, d: 3 },
@@ -112,7 +112,7 @@ class Arena {
       { x: 0, z: 0, w: 4, h: 1.5, d: 4 },
     ];
     
-    obstacles.forEach((obs, index) => {
+    this.obstacles.forEach((obs, index) => {
       const geometry = new THREE.BoxGeometry(obs.w, obs.h, obs.d);
       const mesh = new THREE.Mesh(geometry, obstacleMaterial);
       mesh.position.set(obs.x, obs.h / 2, obs.z);
@@ -144,6 +144,14 @@ class Arena {
   getFloorGeometry() {
     const floor = this.group.getObjectByName('floor');
     return floor ? floor.geometry : null;
+  }
+  
+  getNavigationBounds() {
+    return {
+      width: this.width,
+      depth: this.depth,
+      obstacles: this.obstacles || []
+    };
   }
 }
 
