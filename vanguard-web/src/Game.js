@@ -3,6 +3,8 @@ import PhysicsManager from './core/PhysicsManager.js';
 import InputController from './core/InputController.js';
 import Arena from './world/Arena.js';
 import Player from './entities/Player.js';
+import WeaponSystem from './systems/WeaponSystem.js';
+import HUD from './ui/HUD.js';
 
 class Game {
   constructor() {
@@ -12,6 +14,8 @@ class Game {
     this.clock = null;
     this.arena = null;
     this.player = null;
+    this.weaponSystem = null;
+    this.hud = null;
     this.debugInfo = document.getElementById('debug-info');
     this.frameCount = 0;
     this.fps = 0;
@@ -34,6 +38,12 @@ class Game {
     
     this.player = new Player();
     this.player.init(this.camera, this.arena.getPlayerSpawnPoint());
+    
+    this.weaponSystem = new WeaponSystem();
+    this.weaponSystem.init(this.camera, this.scene);
+    
+    this.hud = new HUD();
+    this.hud.init();
     
     this.clock = new THREE.Clock();
     
@@ -128,6 +138,25 @@ class Game {
     }
   }
   
+  updateHUD() {
+    if (!this.hud || !this.player || !this.weaponSystem) return;
+    
+    this.hud.updateHealth(this.player.getHealth(), this.player.getMaxHealth());
+    
+    const weaponState = this.weaponSystem.getState();
+    this.hud.updateAmmo(
+      weaponState.currentMagazine,
+      weaponState.reserveAmmo,
+      weaponState.magazineSize
+    );
+    
+    if (weaponState.isReloading) {
+      this.hud.showReload(weaponState.reloadProgress);
+    } else {
+      this.hud.hideReload();
+    }
+  }
+  
   updateDebugInfo(deltaTime) {
     this.frameCount++;
     const now = performance.now();
@@ -140,14 +169,15 @@ class Game {
     
     if (this.debugInfo && this.player) {
       const debug = this.player.getDebugInfo();
+      const weaponState = this.weaponSystem ? this.weaponSystem.getState() : {};
       this.debugInfo.textContent = [
         `FPS: ${this.fps}`,
         `Pos: ${debug.position}`,
-        `Vel: ${debug.velocity}`,
         `Grounded: ${debug.grounded}`,
-        `Crouching: ${debug.crouching}`,
         `Health: ${debug.health}`,
-        `Pointer Lock: ${InputController.isLocked()}`
+        `Ammo: ${weaponState.currentMagazine || 0}/${weaponState.reserveAmmo || 0}`,
+        `ADS: ${weaponState.isADS || false}`,
+        `Mode: ${InputController.isMobileDevice() ? 'Mobile' : 'Desktop'}`
       ].join('\n');
     }
   }
@@ -159,6 +189,11 @@ class Game {
       this.player.update(deltaTime);
     }
     
+    if (this.weaponSystem) {
+      this.weaponSystem.update(deltaTime);
+    }
+    
+    this.updateHUD();
     this.updateCrosshair();
     this.updateDebugInfo(deltaTime);
   }
@@ -185,6 +220,8 @@ class Game {
   destroy() {
     PhysicsManager.destroy();
     InputController.destroy();
+    if (this.weaponSystem) this.weaponSystem.destroy();
+    if (this.hud) this.hud.destroy();
     this.renderer.dispose();
   }
 }
