@@ -108,7 +108,11 @@ class Game {
   showStartPrompt() {
     const crosshair = document.getElementById('crosshair');
     if (crosshair) {
-      crosshair.innerHTML = 'Click to play<br><small>WASD to move | Mouse to look | Space to jump | C to crouch</small>';
+      if (InputController.isMobileDevice()) {
+        crosshair.innerHTML = 'Use joysticks to play<br><small>Left: Move | Right: Look | Buttons: Actions</small>';
+      } else {
+        crosshair.innerHTML = 'Click to play<br><small>WASD to move | Mouse to look | Space to jump | C to crouch</small>';
+      }
       crosshair.style.fontSize = '16px';
       crosshair.style.textAlign = 'center';
       crosshair.style.lineHeight = '1.5';
